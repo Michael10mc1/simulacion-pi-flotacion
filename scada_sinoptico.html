@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-main: #0b0f19;
+      --bg-card: #121826;
+      --bg-panel: #161e31;
+      --border: #243049;
+      --text-main: #e2e8f0;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-amber: #f59e0b;
+      --accent-green: #10b981;
+      --accent-red: #ef4444;
+      --accent-purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Roboto, sans-serif; }
+    body { background: var(--bg-main); color: var(--text-main); padding: 10px; }
+
+    .header {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 12px 18px; margin-bottom: 14px;
+    }
+    .header h1 { font-size: 1.08rem; color: #f8fafc; }
+    .header p { font-size: 0.78rem; color: var(--text-muted); margin-top: 2px; }
+    .badge-time {
+      background: #0f172a; border: 1px solid var(--accent-blue); color: var(--accent-blue);
+      padding: 6px 14px; border-radius: 8px; font-family: monospace; font-size: 0.98rem; font-weight: bold;
+    }
+
+    .layout { display: grid; grid-template-columns: 295px 1fr; gap: 14px; }
+    @media (max-width: 1050px) { .layout { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+    }
+    .card-title { font-size: 0.88rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; color: #f1f5f9; }
+
+    .control-group { margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+    .control-group:last-child { border-bottom: none; margin-bottom: 0; }
+    .control-group label { display: flex; justify-content: space-between; font-size: 0.79rem; color: var(--text-muted); margin-bottom: 4px; }
+    .control-group label span { color: var(--accent-blue); font-weight: 600; font-family: monospace; }
+    input[type="range"] { width: 100%; accent-color: var(--accent-blue); cursor: pointer; }
+    select {
+      width: 100%; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border);
+      padding: 7px; border-radius: 8px; font-size: 0.82rem; margin-top: 3px;
+    }
+    .btn-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+    button {
+      padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); font-weight: 600;
+      cursor: pointer; font-size: 0.79rem; transition: 0.2s;
+    }
+    .btn-primary { background: #0284c7; color: white; border-color: #38bdf8; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-secondary { background: var(--bg-panel); color: var(--text-main); }
+    .btn-secondary:hover { background: #1e293b; }
+    .btn-dist { background: #7c2d12; color: #fdba74; border-color: #f97316; width: 100%; margin-top: 6px; }
+    .btn-dist:hover { background: #9a3412; }
+
+    /* Barra de alarmas e IAE en cm·s */
+    .status-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    .status-pill {
+      background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 7px 8px;
+      text-align: center; font-size: 0.75rem; font-weight: 600; font-family: monospace;
+    }
+    .pill-ok { border-color: rgba(16,185,129,0.5); color: var(--accent-green); background: rgba(16,185,129,0.08); }
+    .pill-alarm { border-color: var(--accent-red); color: #fca5a5; background: rgba(239,68,68,0.2); animation: blink 1s infinite; }
+    @keyframes blink { 50% { opacity: 0.55; } }
+
+    /* Sinóptico Canvas */
+    .synoptic-box {
+      background: #070a11; border: 1px solid var(--border); border-radius: 10px; padding: 8px; margin-bottom: 12px;
+    }
+    canvas#scadaCanvas { width: 100%; height: 345px; display: block; }
+    .legend-bar {
+      display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; font-size: 0.74rem;
+      color: var(--text-muted); padding-top: 6px; border-top: 1px solid #1e293b;
+    }
+    .legend-item { display: flex; align-items: center; gap: 5px; }
+    .dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+    /* Tarjeta didáctica: Desglose en vivo P + I + FF y ecuaciones del artículo */
+    .math-live-grid {
+      display: grid; grid-template-columns: 1.1fr 1.4fr; gap: 12px; margin-bottom: 12px;
+    }
+    @media (max-width: 900px) { .math-live-grid { grid-template-columns: 1fr; } }
+    .math-box {
+      background: #0d1320; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+      font-size: 0.76rem; line-height: 1.5; color: #cbd5e1;
+    }
+    .math-box h4 { color: var(--accent-blue); font-size: 0.78rem; text-transform: uppercase; margin-bottom: 6px; }
+    .eq-line {
+      background: #080c14; border-left: 3px solid var(--accent-amber); padding: 4px 8px;
+      font-family: monospace; font-size: 0.75rem; color: #f8fafc; margin: 4px 0; border-radius: 4px;
+    }
+    .telemetry-table { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 0.73rem; margin-top: 4px; }
+    .telemetry-table th { color: var(--text-muted); text-align: right; padding: 3px 5px; border-bottom: 1px solid #1e293b; }
+    .telemetry-table th:first-child { text-align: left; }
+    .telemetry-table td { text-align: right; padding: 4px 5px; border-bottom: 1px solid #151e30; }
+    .telemetry-table td:first-child { text-align: left; font-weight: bold; color: #f8fafc; }
+
+    /* Gráficas inferiores */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-wrap { background: #0d1320; border: 1px solid var(--border); border-radius: 10px; padding: 8px; height: 230px; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <h1>SINÓPTICO P&amp;ID / SCADA — BANCO DE 3 CELDAS DE FLOTACIÓN EN SERIE (FT-101 / 102 / 103)</h1>
+      <p>Control de Nivel Integrador PI (τd = 0) + Feedforward con Bombas Peristálticas Masterflex | Quintanilla et al. (2023), MethodsX 10, 102081</p>
+    </div>
+    <div class="badge-time" id="simClock">t = 0.0 s</div>
+  </div>
+
+  <div class="layout">
+    <!-- PANEL IZQUIERDO -->
+    <div class="card">
+      <div class="card-title">Control de Operación</div>
+
+      <div class="control-group">
+        <label>Estrategia de Control Activa:</label>
+        <select id="strategySelect">
+          <option value="PI_FF" selected>Feedback (PI) + Feedforward (Kff·ΔQ)</option>
+          <option value="PI_ONLY">Solo Feedback (PI Clásico SIMC)</option>
+          <option value="OPEN_LOOP">Lazo Abierto (Bombas Manuales 45 lpm)</option>
+        </select>
+        <div class="btn-row">
+          <button class="btn-primary" id="btnToggle">Pausar</button>
+          <button class="btn-secondary" id="btnReset">Reiniciar</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>Caudal Alimentación Q_feed (P-4): <span id="lblQfeed">45.0 lpm</span></label>
+        <input type="range" id="slQfeed" min="20" max="75" step="1" value="45" />
+        <button class="btn-dist" id="btnPulse">+15 lpm Escalón Perturbación (Q_feed)</button>
+      </div>
+
+      <div class="control-group">
+        <label>Setpoint Celda 1 (LIC-1 / SP1): <span id="lblSp1">30.0 cm</span></label>
+        <input type="range" id="slSp1" min="22" max="38" step="0.5" value="30.0" />
+
+        <label style="margin-top:6px;">Setpoint Celda 2 (LIC-2 / SP2): <span id="lblSp2">33.5 cm</span></label>
+        <input type="range" id="slSp2" min="22" max="38" step="0.5" value="33.5" />
+
+        <label style="margin-top:6px;">Setpoint Celda 3 (LIC-3 / SP3): <span id="lblSp3">33.5 cm</span></label>
+        <input type="range" id="slSp3" min="22" max="38" step="0.5" value="33.5" />
+      </div>
+
+      <div class="control-group">
+        <label>Inyección de Aire (Burbujeo): <span id="lblAir">47 lpm</span></label>
+        <input type="range" id="slAir" min="0" max="80" step="1" value="47" />
+        <label style="margin-top:6px;">Velocidad Simulación: <span id="lblSpeed">2x</span></label>
+        <input type="range" id="slSpeed" min="1" max="5" step="1" value="2" />
+      </div>
+
+      <div class="control-group" style="font-size:0.74rem; color:var(--text-muted); line-height:1.4;">
+        <strong style="color:#cbd5e1;">Sintonización SIMC (Tabla 2):</strong><br>
+        • <b>LIC-1 (C1):</b> Kc = -62, τi = 56s, θ = 7s, Kff = 0.8<br>
+        • <b>LIC-2 (C2):</b> Kc = -76, τi = 30s, θ = 6s, Kff = 0.8<br>
+        • <b>LIC-3 (C3):</b> Kc = -85, τi = 44s, θ = 3s, Kff = 1.0<br>
+        • <b>¿Por qué PI y no PID?</b> τd = 0 evita amplificar el ruido del aire (47 lpm) en las bombas.
+      </div>
+    </div>
+
+    <!-- PANEL DERECHO -->
+    <div class="card">
+      <div class="status-bar">
+        <div class="status-pill pill-ok" id="pillMode">MODO: PI + FEEDFORWARD</div>
+        <div class="status-pill pill-ok" id="pillC1">C1: 30.0cm | IAE: 0.0 cm·s</div>
+        <div class="status-pill pill-ok" id="pillC2">C2: 33.5cm | IAE: 0.0 cm·s</div>
+        <div class="status-pill pill-ok" id="pillC3">C3: 33.5cm | IAE: 0.0 cm·s</div>
+      </div>
+
+      <div class="synoptic-box">
+        <canvas id="scadaCanvas"></canvas>
+        <div class="legend-bar">
+          <div class="legend-item"><span class="dot" style="background:#f59e0b;"></span>Espuma Mineral (Froth)</div>
+          <div class="legend-item"><span class="dot" style="background:#38bdf8;"></span>Pulpa Mineral (0–45 cm)</div>
+          <div class="legend-item"><span class="dot" style="background:#fbbf24;"></span>Setpoint (SP)</div>
+          <div class="legend-item"><span class="dot" style="background:#10b981;"></span>Bombas Peristálticas (P-1/2/3)</div>
+          <div class="legend-item"><span class="dot" style="background:#a855f7;"></span>Alimentación P-4 (Q_feed)</div>
+        </div>
+      </div>
+
+      <!-- TARJETA DIDÁCTICA: ECUACIONES Y TELEMETRÍA EN VIVO P + I + FF -->
+      <div class="math-live-grid">
+        <div class="math-box">
+          <h4>Ecuaciones del Paper (Quintanilla et al., 2023)</h4>
+          <div class="eq-line">Planta (Ec. 4): Gp(s) = (-0.001018 / s) · e^(-θs)</div>
+          <div class="eq-line">Control (Ec. 7): u_i(t) = u₀ + Kc·[e_i + (1/τi)∫e_i dt] + Kff·ΔQd_i</div>
+          <div class="eq-line">Desempeño (Ec. 9): IAE_i = ∫ |SP_i - hp_i(t)| dt  [cm·s]</div>
+          <div style="margin-top:4px; color:#94a3b8; font-size:0.72rem;">
+            Acoplamiento en serie (Fig. 15): Qd₁ = Q_feed, Qd₂ = Q_P1, Qd₃ = Q_P2.
+          </div>
+        </div>
+
+        <div class="math-box">
+          <h4>Desglose de Acción de Control en Tiempo Real (P + I + Feedforward)</h4>
+          <table class="telemetry-table">
+            <thead>
+              <tr>
+                <th>Lazo / Celda</th>
+                <th>Error e(t)</th>
+                <th>Acción P [lpm]</th>
+                <th>Acción I [lpm]</th>
+                <th>Adelanto FF</th>
+                <th>Total Bomba u(t)</th>
+              </tr>
+            </thead>
+            <tbody id="telemetryBody">
+              <tr><td>LIC-1 (FT-101)</td><td>0.00 cm</td><td>0.0</td><td>0.0</td><td>0.0</td><td>45.0 lpm</td></tr>
+              <tr><td>LIC-2 (FT-102)</td><td>0.00 cm</td><td>0.0</td><td>0.0</td><td>0.0</td><td>45.0 lpm</td></tr>
+              <tr><td>LIC-3 (FT-103)</td><td>0.00 cm</td><td>0.0</td><td>0.0</td><td>0.0</td><td>45.0 lpm</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="chart-wrap"><canvas id="levelChart"></canvas></div>
+        <div class="chart-wrap"><canvas id="flowChart"></canvas></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const K_PRIME = 0.001018;
+const CELL_H_MAX = 45.0;
+
+const cells = [
+  { id: 1, tag: "FT-101", sensor: "LI-1", ctrl: "LIC-1", pump: "P-1", kc: -62.0, ti: 56.0, kff: 0.8, theta: 7, h: 30.0, sp: 30.0, integral: 0, u: 45.0, uP: 0, uI: 0, uFF: 0, err: 0, qIn: 45.0, qInPrev: 45.0, iae: 0, hist: Array(35).fill(30.0) },
+  { id: 2, tag: "FT-102", sensor: "LI-2", ctrl: "LIC-2", pump: "P-2", kc: -76.0, ti: 30.0, kff: 0.8, theta: 6, h: 33.5, sp: 33.5, integral: 0, u: 45.0, uP: 0, uI: 0, uFF: 0, err: 0, qIn: 45.0, qInPrev: 45.0, iae: 0, hist: Array(35).fill(33.5) },
+  { id: 3, tag: "FT-103", sensor: "LI-3", ctrl: "LIC-3", pump: "P-3", kc: -85.0, ti: 44.0, kff: 1.0, theta: 3, h: 33.5, sp: 33.5, integral: 0, u: 45.0, uP: 0, uI: 0, uFF: 0, err: 0, qIn: 45.0, qInPrev: 45.0, iae: 0, hist: Array(35).fill(33.5) }
+];
+
+const bubbles = [[], [], []];
+for (let c = 0; c < 3; c++) {
+  for (let i = 0; i < 36; i++) {
+    bubbles[c].push({ rx: Math.random(), ry: Math.random(), r: 1.5 + Math.random() * 3.0, vy: 0.004 + Math.random() * 0.008 });
+  }
+}
+
+let simTime = 0.0;
+let running = true;
+let flowOffset = 0;
+
+const slQfeed = document.getElementById("slQfeed");
+const slSp1 = document.getElementById("slSp1");
+const slSp2 = document.getElementById("slSp2");
+const slSp3 = document.getElementById("slSp3");
+const slAir = document.getElementById("slAir");
+const slSpeed = document.getElementById("slSpeed");
+const strategySelect = document.getElementById("strategySelect");
+
+slQfeed.oninput = () => document.getElementById("lblQfeed").textContent = `${parseFloat(slQfeed.value).toFixed(1)} lpm`;
+slSp1.oninput = () => { cells[0].sp = parseFloat(slSp1.value); document.getElementById("lblSp1").textContent = `${cells[0].sp.toFixed(1)} cm`; };
+slSp2.oninput = () => { cells[1].sp = parseFloat(slSp2.value); document.getElementById("lblSp2").textContent = `${cells[1].sp.toFixed(1)} cm`; };
+slSp3.oninput = () => { cells[2].sp = parseFloat(slSp3.value); document.getElementById("lblSp3").textContent = `${cells[2].sp.toFixed(1)} cm`; };
+slAir.oninput = () => document.getElementById("lblAir").textContent = `${slAir.value} lpm`;
+slSpeed.oninput = () => document.getElementById("lblSpeed").textContent = `${slSpeed.value}x`;
+
+document.getElementById("btnToggle").onclick = (e) => {
+  running = !running;
+  e.target.textContent = running ? "Pausar" : "Reanudar";
+};
+
+document.getElementById("btnPulse").onclick = () => {
+  let nextQ = Math.min(75, parseFloat(slQfeed.value) + 15);
+  slQfeed.value = nextQ;
+  document.getElementById("lblQfeed").textContent = `${nextQ.toFixed(1)} lpm`;
+};
+
+document.getElementById("btnReset").onclick = () => {
+  simTime = 0;
+  slQfeed.value = 45; document.getElementById("lblQfeed").textContent = "45.0 lpm";
+  slSp1.value = 30.0; document.getElementById("lblSp1").textContent = "30.0 cm";
+  slSp2.value = 33.5; document.getElementById("lblSp2").textContent = "33.5 cm";
+  slSp3.value = 33.5; document.getElementById("lblSp3").textContent = "33.5 cm";
+  const initSp = [30.0, 33.5, 33.5];
+  cells.forEach((c, i) => {
+    c.h = initSp[i]; c.sp = initSp[i]; c.integral = 0; c.u = 45.0;
+    c.uP = 0; c.uI = 0; c.uFF = 0; c.err = 0;
+    c.qIn = 45.0; c.qInPrev = 45.0; c.iae = 0;
+    c.hist = Array(35).fill(initSp[i]);
+  });
+  resetCharts();
+};
+
+const levelChart = new Chart(document.getElementById("levelChart"), {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [
+      { label: "PV Celda 1 [cm]", data: [], borderColor: "#38bdf8", borderWidth: 2, pointRadius: 0 },
+      { label: "SP Celda 1 [cm]", data: [], borderColor: "#fbbf24", borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0 },
+      { label: "PV Celda 2 [cm]", data: [], borderColor: "#10b981", borderWidth: 2, pointRadius: 0 },
+      { label: "PV Celda 3 [cm]", data: [], borderColor: "#a855f7", borderWidth: 2, pointRadius: 0 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { title: { display: true, text: "Niveles de Pulpa hp(t) en Tiempo Real [cm]", color: "#e2e8f0" }, legend: { labels: { color: "#cbd5e1", boxWidth: 12 } } },
+    scales: {
+      x: { ticks: { color: "#94a3b8", maxTicksLimit: 8 }, grid: { color: "#1e293b" } },
+      y: { min: 15, max: 45, ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } }
+    }
+  }
+});
+
+const flowChart = new Chart(document.getElementById("flowChart"), {
+  type: "line",
+  data: {
+    labels: [],
+    datasets: [
+      { label: "Q_feed P-4 [lpm]", data: [], borderColor: "#f43f5e", borderWidth: 2, pointRadius: 0 },
+      { label: "Bomba P-1 Relave C1", data: [], borderColor: "#38bdf8", borderWidth: 1.8, pointRadius: 0 },
+      { label: "Bomba P-2 Relave C2", data: [], borderColor: "#10b981", borderWidth: 1.8, pointRadius: 0 },
+      { label: "Bomba P-3 Relave C3", data: [], borderColor: "#a855f7", borderWidth: 1.8, pointRadius: 0 }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { title: { display: true, text: "Caudales Bombas Peristálticas vs Perturbación [lpm]", color: "#e2e8f0" }, legend: { labels: { color: "#cbd5e1", boxWidth: 12 } } },
+    scales: {
+      x: { ticks: { color: "#94a3b8", maxTicksLimit: 8 }, grid: { color: "#1e293b" } },
+      y: { min: 0, max: 100, ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } }
+    }
+  }
+});
+
+function resetCharts() {
+  levelChart.data.labels = [];
+  levelChart.data.datasets.forEach(d => d.data = []);
+  flowChart.data.labels = [];
+  flowChart.data.datasets.forEach(d => d.data = []);
+  levelChart.update();
+  flowChart.update();
+}
+
+let chartTimer = 0;
+function stepSimulation(dt) {
+  simTime += dt;
+  const qFeed = parseFloat(slQfeed.value);
+  const airLpm = parseFloat(slAir.value);
+  const strat = strategySelect.value;
+
+  cells[0].qIn = qFeed;
+  cells[1].qIn = cells[0].u;
+  cells[2].qIn = cells[1].u;
+
+  cells.forEach((c, idx) => {
+    c.hist.push(c.h);
+    if (c.hist.length > 65) c.hist.shift();
+    const delaySteps = Math.min(c.hist.length - 1, Math.round(c.theta / dt));
+    const noise = (airLpm / 47.0) * (Math.random() - 0.5) * 0.12;
+    const yMeas = c.hist[c.hist.length - 1 - delaySteps] + noise;
+
+    const err = c.sp - yMeas;
+    c.err = err;
+    c.iae += Math.abs(err) * dt;
+
+    if (strat === "OPEN_LOOP") {
+      c.uP = 0; c.uI = 0; c.uFF = 0;
+      c.u = 45.0;
+    } else {
+      c.integral = Math.max(-60, Math.min(60, c.integral + err * dt));
+      const dq = c.qIn - c.qInPrev;
+      c.uP = c.kc * err;
+      c.uI = c.kc * (1.0 / c.ti) * c.integral;
+      // En tiempo discreto continuo mantenemos el impulso feedforward suavizado en ventana de 1s
+      const instFF = (strat === "PI_FF") ? (c.kff * dq / dt) : 0.0;
+      c.uFF = 0.75 * c.uFF + 0.25 * instFF;
+      const uCmd = 45.0 + c.uP + c.uI + c.uFF;
+      c.u = Math.max(0.0, Math.min(95.0, uCmd));
+    }
+
+    const dh = K_PRIME * (c.qIn - c.u) * dt;
+    c.h = Math.max(2.0, Math.min(CELL_H_MAX, c.h + dh));
+    c.qInPrev = c.qIn;
+  });
+
+  document.getElementById("simClock").textContent = `t = ${simTime.toFixed(1)} s`;
+  const pillMode = document.getElementById("pillMode");
+  pillMode.textContent = strat === "PI_FF" ? "MODO: PI + FEEDFORWARD" : (strat === "PI_ONLY" ? "MODO: SOLO PI (SIMC)" : "MODO: LAZO ABIERTO");
+
+  let tbodyHtml = "";
+  cells.forEach((c, idx) => {
+    const pill = document.getElementById(`pillC${idx + 1}`);
+    if (c.h >= 40.0) {
+      pill.className = "status-pill pill-alarm";
+      pill.textContent = `C${idx+1}: ALM HH (${c.h.toFixed(1)}cm)`;
+    } else if (c.h <= 10.0) {
+      pill.className = "status-pill pill-alarm";
+      pill.textContent = `C${idx+1}: ALM LL (${c.h.toFixed(1)}cm)`;
+    } else {
+      pill.className = "status-pill pill-ok";
+      pill.textContent = `C${idx+1}: ${c.h.toFixed(1)}cm | IAE: ${c.iae.toFixed(1)} cm·s`;
+    }
+
+    tbodyHtml += `<tr>
+      <td>${c.ctrl} (${c.tag})</td>
+      <td>${c.err >= 0 ? "+" : ""}${c.err.toFixed(2)} cm</td>
+      <td>${c.uP >= 0 ? "+" : ""}${c.uP.toFixed(1)}</td>
+      <td>${c.uI >= 0 ? "+" : ""}${c.uI.toFixed(1)}</td>
+      <td style="color:#38bdf8;">${c.uFF >= 0 ? "+" : ""}${c.uFF.toFixed(1)}</td>
+      <td style="color:#10b981; font-weight:bold;">${c.u.toFixed(1)} lpm</td>
+    </tr>`;
+  });
+  document.getElementById("telemetryBody").innerHTML = tbodyHtml;
+
+  chartTimer += dt;
+  if (chartTimer >= 1.0) {
+    chartTimer = 0;
+    const tLabel = `${simTime.toFixed(0)}s`;
+    levelChart.data.labels.push(tLabel);
+    levelChart.data.datasets[0].data.push(cells[0].h.toFixed(2));
+    levelChart.data.datasets[1].data.push(cells[0].sp.toFixed(2));
+    levelChart.data.datasets[2].data.push(cells[1].h.toFixed(2));
+    levelChart.data.datasets[3].data.push(cells[2].h.toFixed(2));
+
+    flowChart.data.labels.push(tLabel);
+    flowChart.data.datasets[0].data.push(qFeed.toFixed(1));
+    flowChart.data.datasets[1].data.push(cells[0].u.toFixed(1));
+    flowChart.data.datasets[2].data.push(cells[1].u.toFixed(1));
+    flowChart.data.datasets[3].data.push(cells[2].u.toFixed(1));
+
+    if (levelChart.data.labels.length > 90) {
+      levelChart.data.labels.shift();
+      levelChart.data.datasets.forEach(d => d.data.shift());
+      flowChart.data.labels.shift();
+      flowChart.data.datasets.forEach(d => d.data.shift());
+    }
+    levelChart.update();
+    flowChart.update();
+  }
+}
+
+const canvas = document.getElementById("scadaCanvas");
+const ctx = canvas.getContext("2d");
+
+function drawPump(x, y, label, flowVal, activeColor) {
+  ctx.fillStyle = "#0f172a";
+  ctx.strokeStyle = activeColor;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(x, y, 15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  const angle = (flowOffset * 0.08 * (flowVal / 45.0));
+  for (let r = 0; r < 3; r++) {
+    const a = angle + (r * Math.PI * 2) / 3;
+    ctx.fillStyle = activeColor;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * 7.5, y + Math.sin(a) * 7.5, 2.8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = "#f8fafc";
+  ctx.font = "bold 10px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText(label, x, y - 20);
+  ctx.fillStyle = activeColor;
+  ctx.font = "10px monospace";
+  ctx.fillText(`${flowVal.toFixed(1)} lpm`, x, y + 26);
+}
+
+function drawSinoptic() {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const W = rect.width;
+  const H = rect.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const airLpm = parseFloat(slAir.value);
+  const qFeed = parseFloat(slQfeed.value);
+  flowOffset += 1;
+
+  const tankW = Math.min(150, (W - 280) / 3);
+  const tankH = 185;
+  const tankTop = 82;
+  const tankBottom = tankTop + tankH;
+  const startX = 135;
+  const gapX = (W - startX - 80 - tankW * 3) / 2;
+
+  // Tanque de alimentación T-1 a la izquierda (Fig. 4 P&ID)
+  const pipeInY = tankTop + 30;
+  ctx.fillStyle = "#1e293b";
+  ctx.strokeStyle = "#a855f7";
+  ctx.lineWidth = 1.8;
+  ctx.fillRect(10, pipeInY - 26, 36, 52);
+  ctx.strokeRect(10, pipeInY - 26, 36, 52);
+  ctx.fillStyle = "#f8fafc";
+  ctx.font = "bold 10px monospace";
+  ctx.textAlign = "center";
+  ctx.fillText("T-1", 28, pipeInY + 3);
+
+  ctx.strokeStyle = "#334155";
+  ctx.lineWidth = 9;
+  ctx.beginPath();
+  ctx.moveTo(46, pipeInY);
+  ctx.lineTo(startX, pipeInY);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#a855f7";
+  ctx.lineWidth = 3;
+  ctx.setLineDash([7, 7]);
+  ctx.lineDashOffset = -flowOffset * (qFeed / 30);
+  ctx.beginPath();
+  ctx.moveTo(48, pipeInY);
+  ctx.lineTo(startX - 4, pipeInY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  drawPump(84, pipeInY, "P-4 (Feed)", qFeed, "#a855f7");
+
+  // Canaleta inferior de concentrado (espuma rebalsada)
+  const troughY = tankBottom + 46;
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(startX + tankW * 0.5, troughY - 6);
+  ctx.lineTo(W - 22, troughY + 8);
+  ctx.stroke();
+  ctx.fillStyle = "#94a3b8";
+  ctx.font = "10px monospace";
+  ctx.textAlign = "right";
+  ctx.fillText("Concentrado (Espuma) → Recirculación Tanque T-1", W - 26, troughY + 20);
+
+  cells.forEach((c, i) => {
+    const x = startX + i * (tankW + gapX);
+    const y = tankTop;
+
+    const ratioH = Math.max(0, Math.min(1, c.h / CELL_H_MAX));
+    const pulpH = ratioH * tankH;
+    const pulpY = tankBottom - pulpH;
+
+    const pulpGrad = ctx.createLinearGradient(0, pulpY, 0, tankBottom);
+    pulpGrad.addColorStop(0, "rgba(56, 189, 248, 0.35)");
+    pulpGrad.addColorStop(1, "rgba(30, 58, 138, 0.68)");
+    ctx.fillStyle = pulpGrad;
+    ctx.fillRect(x, pulpY, tankW, pulpH);
+
+    const frothH = airLpm > 2 ? Math.min(20, 6 + (airLpm / 80) * 14) : 2;
+    const frothY = Math.max(y, pulpY - frothH);
+    const frothGrad = ctx.createLinearGradient(0, frothY, 0, pulpY);
+    frothGrad.addColorStop(0, "#fbbf24");
+    frothGrad.addColorStop(1, "#b45309");
+    ctx.fillStyle = frothGrad;
+    ctx.fillRect(x, frothY, tankW, pulpY - frothY);
+
+    if (airLpm > 5) {
+      ctx.fillStyle = "rgba(245, 158, 11, 0.72)";
+      ctx.fillRect(x + tankW, y + 18, 9, troughY - (y + 18));
+    }
+
+    if (airLpm > 0) {
+      ctx.fillStyle = "rgba(226, 232, 240, 0.28)";
+      bubbles[i].forEach(b => {
+        if (running) {
+          b.ry -= b.vy * (airLpm / 45);
+          if (b.ry < 0) { b.ry = 1; b.rx = Math.random(); }
+        }
+        const bx = x + 10 + b.rx * (tankW - 20);
+        const by = pulpY + b.ry * Math.max(8, pulpH - 6);
+        if (by > pulpY + 2 && by < tankBottom - 4) {
+          ctx.beginPath();
+          ctx.arc(bx, by, b.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      });
+    }
+
+    ctx.strokeStyle = "#94a3b8";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x, tankBottom);
+    ctx.lineTo(x + tankW, tankBottom);
+    ctx.lineTo(x + tankW, y + 20);
+    ctx.stroke();
+
+    ctx.fillStyle = "#64748b";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "right";
+    [15, 30, 45].forEach(mark => {
+      const my = tankBottom - (mark / CELL_H_MAX) * tankH;
+      ctx.fillRect(x - 5, my, 5, 1.5);
+      ctx.fillText(`${mark}`, x - 8, my + 3);
+    });
+
+    // Difusor de aire inferior
+    ctx.fillStyle = "#0ea5e9";
+    ctx.fillRect(x + tankW * 0.22, tankBottom - 9, tankW * 0.56, 5);
+
+    // Sensor LI-i y lazo LIC-i (P&ID Fig. 4)
+    const sensX = x + tankW * 0.68;
+    ctx.fillStyle = "#0f172a";
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 1.8;
+    ctx.fillRect(sensX - 15, y - 34, 30, 16);
+    ctx.strokeRect(sensX - 15, y - 34, 30, 16);
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 9.5px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(`${c.sensor}/${c.ctrl}`, sensX, y - 40);
+
+    ctx.strokeStyle = "rgba(56, 189, 248, 0.35)";
+    ctx.lineWidth = 1.2;
+    for (let w = 1; w <= 3; w++) {
+      const wy = y - 12 + w * 13 + ((flowOffset * 0.4) % 10);
+      if (wy < frothY - 4) {
+        ctx.beginPath();
+        ctx.arc(sensX, wy, 6 + w * 2, 0.2 * Math.PI, 0.8 * Math.PI);
+        ctx.stroke();
+      }
+    }
+
+    ctx.fillStyle = "#1e293b";
+    ctx.strokeStyle = "#38bdf8";
+    ctx.fillRect(x + 8, y - 34, 52, 18);
+    ctx.strokeRect(x + 8, y - 34, 52, 18);
+    ctx.fillStyle = "#f8fafc";
+    ctx.font = "bold 10px monospace";
+    ctx.fillText(c.tag, x + 34, y - 22);
+
+    const spY = tankBottom - (c.sp / CELL_H_MAX) * tankH;
+    ctx.strokeStyle = "#fbbf24";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(x, spY);
+    ctx.lineTo(x + tankW, spY);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.textAlign = "left";
+    ctx.font = "bold 10px monospace";
+    ctx.fillStyle = "#fbbf24";
+    ctx.fillText(`SP:${c.sp.toFixed(1)}`, x + tankW + 5, spY - 3);
+    ctx.fillStyle = "#38bdf8";
+    ctx.fillText(`PV:${c.h.toFixed(1)}`, x + tankW + 5, pulpY + 11);
+
+    const outX = x + tankW * 0.5;
+    const outY = tankBottom + 20;
+    ctx.strokeStyle = "#334155";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(outX, tankBottom);
+    ctx.lineTo(outX, outY);
+
+    if (i < 2) {
+      const nextX = startX + (i + 1) * (tankW + gapX);
+      const midX = x + tankW + gapX * 0.52;
+      ctx.lineTo(midX, outY);
+      ctx.lineTo(midX, pipeInY);
+      ctx.lineTo(nextX, pipeInY);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -flowOffset * (c.u / 30);
+      ctx.beginPath();
+      ctx.moveTo(outX, tankBottom + 2);
+      ctx.lineTo(midX, outY);
+      ctx.lineTo(midX, pipeInY);
+      ctx.lineTo(nextX - 3, pipeInY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      drawPump(midX, (outY + pipeInY) * 0.5, `${c.pump}`, c.u, "#10b981");
+    } else {
+      ctx.lineTo(outX + 78, outY);
+      ctx.stroke();
+
+      ctx.strokeStyle = "#10b981";
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([6, 6]);
+      ctx.lineDashOffset = -flowOffset * (c.u / 30);
+      ctx.beginPath();
+      ctx.moveTo(outX, tankBottom + 2);
+      ctx.lineTo(outX + 78, outY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      drawPump(outX + 38, outY, `${c.pump}`, c.u, "#10b981");
+      ctx.fillStyle = "#94a3b8";
+      ctx.font = "10px monospace";
+      ctx.textAlign = "left";
+      ctx.fillText("→ T-1", outX + 82, outY + 3);
+    }
+  });
+}
+
+function loop() {
+  if (running) {
+    const speed = parseInt(slSpeed.value);
+    for (let s = 0; s < speed; s++) {
+      stepSimulation(0.2);
+    }
+  }
+  drawSinoptic();
+  requestAnimationFrame(loop);
+}
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
